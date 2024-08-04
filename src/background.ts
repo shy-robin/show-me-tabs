@@ -151,15 +151,12 @@ class TabManager {
    * 移入或创建分组
    */
   async groupTab(tabIds: number | number[], groupId?: number) {
-    console.log("==========");
-    console.log(groupId);
     // 创建分组
     const newGroupId = await chrome.tabs.group({
       groupId,
       tabIds,
     });
     this.groupId = newGroupId;
-    console.log(newGroupId);
     // 将分组移到首位
     await chrome.tabGroups.move(newGroupId, {
       index: 0,
