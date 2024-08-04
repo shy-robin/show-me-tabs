@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "CRXJS Vue Vite Example",
+  "version": "0.0.1",
+  "action": { "default_popup": "index.html" },
+  "background": {
+    "type": "module",
+    "service_worker": "src/background.ts"
+  }
+}
