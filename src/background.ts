@@ -4,6 +4,7 @@
 // 新窗口增加 tab 会影响旧窗口
 // 多窗口
 // 长时间不使用会重新分组，可能是销毁了变量，可能是 groupId 变化了
+// 将标签页移出分组或者移入分组会有问题
 
 // TODO:
 // 收缩其他自定义组
@@ -13,7 +14,7 @@ import { TabInfo } from "./types/tab";
 class TabManager {
   private groupId: number | undefined;
   private currentWindowId = -1;
-  private maxTabsCount = 6;
+  private maxTabsCount = 3;
   private tabInfoMap: Map<number, TabInfo> = new Map();
 
   constructor() {
@@ -46,6 +47,10 @@ class TabManager {
     // 在标签页关闭时触发。
     chrome.tabs.onRemoved.addListener(() => {
       this.handleTabsChange();
+    });
+    // 在窗口中的活动标签页发生变化时触发。
+    chrome.tabs.onActivated.addListener(() => {
+      this.handleActivateGroupedTabs();
     });
     chrome.windows.onFocusChanged.addListener((windowId) => {
       this.currentWindowId = windowId;
@@ -120,25 +125,7 @@ class TabManager {
     console.log("groupId", this.groupId);
     console.log("currentWindowId", this.currentWindowId);
     // 创建分组
-    chrome.tabs.group(
-      {
-        groupId: this.groupId,
-        tabIds,
-      },
-      async (newGroupId) => {
-        this.groupId = newGroupId;
-        // 将分组移到首位
-        await chrome.tabGroups.move(newGroupId, {
-          index: 0,
-        });
-        // 更新分组的状态
-        await chrome.tabGroups.update(newGroupId, {
-          collapsed: true,
-          color: "purple",
-          title: "More",
-        });
-      }
-    );
+    this.groupTab(tabIds, this.groupId);
   }
 
   /**
@@ -152,21 +139,88 @@ class TabManager {
       groupId: this.groupId,
     });
     const lastTabInGroup = groupedTabs[groupedTabs.length - 1];
-    const onlyOneTab = groupedTabs.length === 1;
     if (!lastTabInGroup) {
       return;
     }
+    if (lastTabInGroup.id) {
+      await this.ungroupTab(groupedTabs, lastTabInGroup.id);
+    }
+  }
 
-    lastTabInGroup.id &&
-      chrome.tabs.ungroup(lastTabInGroup.id, () => {
-        if (onlyOneTab) {
-          this.groupId = undefined;
-        }
-        this.groupId &&
-          chrome.tabGroups.move(this.groupId, {
-            index: 0,
-          });
+  /**
+   * 移入或创建分组
+   */
+  async groupTab(tabIds: number | number[], groupId?: number) {
+    console.log("==========");
+    console.log(groupId);
+    // 创建分组
+    const newGroupId = await chrome.tabs.group({
+      groupId,
+      tabIds,
+    });
+    this.groupId = newGroupId;
+    console.log(newGroupId);
+    // 将分组移到首位
+    await chrome.tabGroups.move(newGroupId, {
+      index: 0,
+    });
+    // 更新分组的状态
+    await chrome.tabGroups.update(newGroupId, {
+      collapsed: true,
+      color: "blue",
+      title: "MORE",
+    });
+  }
+
+  /**
+   * 移出或销毁分组
+   */
+  async ungroupTab(groupedTabs: chrome.tabs.Tab[], tabId: number | number[]) {
+    const onlyOneTab = groupedTabs.length === 1;
+    await chrome.tabs.ungroup(tabId);
+    if (onlyOneTab) {
+      this.groupId = undefined;
+    }
+    if (this.groupId) {
+      await chrome.tabGroups.move(this.groupId, {
+        index: 0,
       });
+    }
+  }
+
+  /**
+   * 处理用户切换到分组标签页
+   */
+  async handleActivateGroupedTabs() {
+    const { currentWindowTabs, ungroupedTabs } = await this.getTabsInfo();
+    const currentActiveTab = currentWindowTabs.find((tab) => tab.active);
+    if (!currentActiveTab || !currentActiveTab.id) {
+      return;
+    }
+    const isGroupedTab = currentActiveTab.groupId === this.groupId;
+    if (!isGroupedTab) {
+      return;
+    }
+    // FIXME: why
+    await new Promise((resolve) => {
+      setTimeout(() => resolve(true), 100);
+    });
+    // 找到未分组标签页中最早访问的标签
+    const groupedTabs = currentWindowTabs.filter(
+      (tab) => tab.groupId === this.groupId
+    );
+    const originalTabs = ungroupedTabs.slice().map((tab) => ({
+      ...tab,
+      lastAccessed:
+        tab.lastAccessed ||
+        this.tabInfoMap.get(tab.id ?? -1)?.lastAccessed ||
+        0,
+    }));
+    const [firstAccessedTab] = originalTabs;
+    // 将选中标签页移出分组
+    await this.ungroupTab(groupedTabs, currentActiveTab.id);
+    // 将最早访问的标签移入分组
+    firstAccessedTab.id && this.groupTab(firstAccessedTab.id, this.groupId);
   }
 }
 
