@@ -13,11 +13,14 @@ class TabManager {
   private tabInfoMap: Map<number, TabInfo> = new Map();
 
   constructor() {
-    this.handleTabsChange();
+    this.organizeTabs();
     this.initListener();
   }
 
-  async handleTabsChange() {
+  /**
+   * 整理标签页
+   */
+  async organizeTabs() {
     const currentWindow = await chrome.windows.getCurrent();
     this.currentWindowId = currentWindow.id ?? -1;
 
@@ -27,29 +30,37 @@ class TabManager {
     if (ungroupedTabsCount === 0) {
       return;
     }
+    // 如果标签页数量超过阈值
     if (ungroupedTabsCount > this.maxTabsCount) {
-      this.handleTabsOverThreshold(ungroupedTabs);
+      this.groupExcessTabs(ungroupedTabs);
       return;
     }
+    // 如果标签页数量低于阈值
     if (ungroupedTabsCount < this.maxTabsCount) {
-      this.handleTabsBelowThreshold();
+      this.fillMissingTabs();
     }
   }
 
   async initListener() {
     // 创建标签页时触发
     chrome.tabs.onCreated.addListener(() => {
-      this.handleTabsChange();
+      this.organizeTabs();
     });
     // 在标签页关闭时触发。
     chrome.tabs.onRemoved.addListener(() => {
-      this.handleTabsChange();
+      this.organizeTabs();
     });
     // 在窗口中的活动标签页发生变化时触发。
     chrome.tabs.onActivated.addListener(() => {
       this.handleActivateGroupedTabs();
     });
-    // TODO: 取消固定时更新 index
+    // 在标签页更新时触发。
+    chrome.tabs.onUpdated.addListener((_tabId, changeInfo) => {
+      // 如果标签页固定或者取消固定，则重新整理标签页
+      if ("pinned" in changeInfo) {
+        this.organizeTabs();
+      }
+    });
     chrome.windows.onFocusChanged.addListener((windowId) => {
       this.currentWindowId = windowId;
     });
@@ -90,9 +101,9 @@ class TabManager {
   }
 
   /**
-   * 处理标签页超过阈值的情况
+   * 将超过阈值的标签页收纳到分组里
    */
-  async handleTabsOverThreshold(ungroupedTabs: chrome.tabs.Tab[]) {
+  async groupExcessTabs(ungroupedTabs: chrome.tabs.Tab[]) {
     // NOTE: 当标签页移动后，lastAccessed 会变为 undefined
     const originalTabs = ungroupedTabs.slice().map((tab) => ({
       ...tab,
@@ -130,9 +141,9 @@ class TabManager {
   }
 
   /**
-   * 处理标签页低于阈值的情况
+   * 将低于阈值的标签页从分组里取出填充
    */
-  async handleTabsBelowThreshold() {
+  async fillMissingTabs() {
     if (!this.groupId) {
       return;
     }
