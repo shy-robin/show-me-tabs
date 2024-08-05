@@ -9,6 +9,7 @@
 ## BUG
 
 - [x] 如果有置顶标签：Error: Cannot move the group to an index that is in the middle of pinned tabs.
+- [x] 新窗口添加标签页，会影响旧窗口标签页的分组
 
 ## Flow
 
