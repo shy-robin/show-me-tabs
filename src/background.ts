@@ -1,13 +1,7 @@
 // BUG:
-// 取消分组，无法触发
-// 附加或分离标签页，无法触发
 // 新窗口增加 tab 会影响旧窗口
 // 多窗口
 // 长时间不使用会重新分组，可能是销毁了变量，可能是 groupId 变化了
-// 将标签页移出分组或者移入分组会有问题
-
-// TODO:
-// 收缩其他自定义组
 
 import { TabInfo } from "./types/tab";
 
@@ -15,6 +9,7 @@ class TabManager {
   private groupId: number | undefined;
   private currentWindowId = -1;
   private maxTabsCount = 3;
+  private lastPinnedIndex = -1;
   private tabInfoMap: Map<number, TabInfo> = new Map();
 
   constructor() {
@@ -36,7 +31,9 @@ class TabManager {
       this.handleTabsOverThreshold(ungroupedTabs);
       return;
     }
-    this.handleTabsBelowThreshold();
+    if (ungroupedTabsCount < this.maxTabsCount) {
+      this.handleTabsBelowThreshold();
+    }
   }
 
   async initListener() {
@@ -52,6 +49,7 @@ class TabManager {
     chrome.tabs.onActivated.addListener(() => {
       this.handleActivateGroupedTabs();
     });
+    // TODO: 取消固定时更新 index
     chrome.windows.onFocusChanged.addListener((windowId) => {
       this.currentWindowId = windowId;
     });
@@ -65,9 +63,13 @@ class TabManager {
 
   async getTabsInfo() {
     const currentWindowTabs = await chrome.tabs.query({ currentWindow: true });
+    let pinnedIndex = -1;
     // 更新标签的上一次访问时间
     currentWindowTabs.forEach((tab) => {
-      const { id, lastAccessed } = tab;
+      const { id, lastAccessed, pinned } = tab;
+      if (pinned) {
+        pinnedIndex++;
+      }
       if (id && lastAccessed) {
         const info = this.tabInfoMap.get(id) ?? {};
         this.tabInfoMap.set(id, {
@@ -76,6 +78,7 @@ class TabManager {
         });
       }
     });
+    this.lastPinnedIndex = pinnedIndex;
     const ungroupedTabs = currentWindowTabs.filter(
       (tab) => tab.groupId < 0 && !tab.pinned
     );
@@ -90,8 +93,6 @@ class TabManager {
    * 处理标签页超过阈值的情况
    */
   async handleTabsOverThreshold(ungroupedTabs: chrome.tabs.Tab[]) {
-    // FIXME: 如果用户已经创建分组怎么办？ 如果用户有多个分组怎么办？
-
     // NOTE: 当标签页移动后，lastAccessed 会变为 undefined
     const originalTabs = ungroupedTabs.slice().map((tab) => ({
       ...tab,
@@ -159,7 +160,7 @@ class TabManager {
     this.groupId = newGroupId;
     // 将分组移到首位
     await chrome.tabGroups.move(newGroupId, {
-      index: 0,
+      index: this.lastPinnedIndex + 1,
     });
     // 更新分组的状态
     await chrome.tabGroups.update(newGroupId, {
@@ -180,7 +181,7 @@ class TabManager {
     }
     if (this.groupId) {
       await chrome.tabGroups.move(this.groupId, {
-        index: 0,
+        index: this.lastPinnedIndex + 1,
       });
     }
   }
