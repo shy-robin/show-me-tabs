@@ -1,8 +1,3 @@
-// BUG:
-// 新窗口增加 tab 会影响旧窗口
-// 多窗口
-// 长时间不使用会重新分组，可能是销毁了变量，可能是 groupId 变化了
-
 import { Bucket } from "./types/tab";
 
 class TabManager {
