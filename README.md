@@ -10,7 +10,14 @@
 
 - [x] 如果有置顶标签：Error: Cannot move the group to an index that is in the middle of pinned tabs.
 - [x] 新窗口添加标签页，会影响旧窗口标签页的分组
+  - 原因：多个窗口共用了同一个 groupId
+  - 解决方案：使用 Map 映射多个窗口，每个窗口中存放对应的 groupId
 - [x] Map 类型无法序列化，因此无法存储到 storage 中
+  - 原因：storage 无法存储非序列化的数据: `JSON.stringify(new Map.set('test', '111'))`
+  - 解决方案：使用 object 代替 Map
+- [x] 长时间不使用浏览器会重新分组
+  - 原因：浏览器自身策略，长时间不使用会将 background 销毁，激活浏览器后重新执行 background
+  - 解决方案：将用到的变量存储到 storage 中，初始化时读取 storage 的数据
 
 ## Flow
 

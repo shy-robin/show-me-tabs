@@ -12,8 +12,18 @@ class TabManager {
   private bucket: Bucket = {};
 
   constructor() {
+    this.init();
+  }
+
+  async init() {
+    await this.initData();
     this.organizeTabs();
     this.initListener();
+  }
+
+  async initData() {
+    const { bucket = {} } = await chrome.storage.sync.get(["bucket"]);
+    this.bucket = bucket;
   }
 
   /**
@@ -50,6 +60,7 @@ class TabManager {
       lastPinnedIndex: -1,
       tabInfoMap: {},
     };
+    this.saveBucket();
   }
 
   async initListener() {
@@ -80,6 +91,7 @@ class TabManager {
       const windowInfo = this.bucket[this.currentWindowId];
       if (windowInfo && id === windowInfo.groupId) {
         windowInfo.groupId = undefined;
+        this.saveBucket();
       }
     });
   }
@@ -109,6 +121,7 @@ class TabManager {
     const ungroupedTabs = currentWindowTabs.filter(
       (tab) => tab.groupId < 0 && !tab.pinned
     );
+    this.saveBucket();
 
     return {
       currentWindowTabs,
@@ -200,6 +213,7 @@ class TabManager {
       color: "blue",
       title: "MORE",
     });
+    this.saveBucket();
   }
 
   /**
@@ -220,6 +234,7 @@ class TabManager {
         index: windowInfo.lastPinnedIndex + 1,
       });
     }
+    this.saveBucket();
   }
 
   /**
@@ -259,6 +274,12 @@ class TabManager {
     // 将最早访问的标签移入分组
     firstAccessedTab.id &&
       this.groupTab(firstAccessedTab.id, windowInfo.groupId);
+  }
+
+  saveBucket() {
+    chrome.storage.sync.set({
+      bucket: this.bucket,
+    });
   }
 }
 
