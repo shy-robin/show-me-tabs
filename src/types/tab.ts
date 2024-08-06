@@ -1,9 +1,9 @@
-export type Bucket = Map<number, WindowInfo>;
+export type Bucket = Record<string, WindowInfo | undefined>;
 
 export interface WindowInfo {
   groupId: number | undefined;
   lastPinnedIndex: number;
-  tabInfoMap: Map<number, TabInfo>;
+  tabInfoMap: Record<string, TabInfo | undefined>;
 }
 
 export interface TabInfo {

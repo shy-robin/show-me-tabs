@@ -10,6 +10,7 @@
 
 - [x] 如果有置顶标签：Error: Cannot move the group to an index that is in the middle of pinned tabs.
 - [x] 新窗口添加标签页，会影响旧窗口标签页的分组
+- [x] Map 类型无法序列化，因此无法存储到 storage 中
 
 ## Flow
 

@@ -8,7 +8,8 @@ import { Bucket } from "./types/tab";
 class TabManager {
   private currentWindowId = -1;
   private maxTabsCount = 3;
-  private bucket: Bucket = new Map();
+  // Map 无法使用 JSON.stringify 做序列化，所以用 object 代替
+  private bucket: Bucket = {};
 
   constructor() {
     this.organizeTabs();
@@ -41,14 +42,14 @@ class TabManager {
   }
 
   async updateBucket(windowId: number) {
-    if (windowId < 0 || this.bucket.has(windowId)) {
+    if (windowId < 0 || this.bucket[windowId]) {
       return;
     }
-    this.bucket.set(windowId, {
+    this.bucket[windowId] = {
       groupId: undefined,
       lastPinnedIndex: -1,
-      tabInfoMap: new Map(),
-    });
+      tabInfoMap: {},
+    };
   }
 
   async initListener() {
@@ -76,7 +77,7 @@ class TabManager {
     });
     chrome.tabGroups.onRemoved.addListener((tabGroup) => {
       const { id } = tabGroup;
-      const windowInfo = this.bucket.get(this.currentWindowId);
+      const windowInfo = this.bucket[this.currentWindowId];
       if (windowInfo && id === windowInfo.groupId) {
         windowInfo.groupId = undefined;
       }
@@ -84,7 +85,7 @@ class TabManager {
   }
 
   async getTabsInfo() {
-    const windowInfo = this.bucket.get(this.currentWindowId);
+    const windowInfo = this.bucket[this.currentWindowId];
     const currentWindowTabs = await chrome.tabs.query({ currentWindow: true });
     const tabInfoMap = windowInfo?.tabInfoMap;
     let pinnedIndex = -1;
@@ -95,11 +96,13 @@ class TabManager {
         pinnedIndex++;
       }
       if (id && lastAccessed) {
-        const info = tabInfoMap?.get(id) ?? {};
-        tabInfoMap?.set(id, {
-          ...info,
-          lastAccessed,
-        });
+        const info = tabInfoMap?.[id] ?? {};
+        if (tabInfoMap) {
+          tabInfoMap[id] = {
+            ...info,
+            lastAccessed,
+          };
+        }
       }
     });
     windowInfo && (windowInfo.lastPinnedIndex = pinnedIndex);
@@ -117,7 +120,7 @@ class TabManager {
    * 将超过阈值的标签页收纳到分组里
    */
   async groupExcessTabs(ungroupedTabs: chrome.tabs.Tab[]) {
-    const windowInfo = this.bucket.get(this.currentWindowId);
+    const windowInfo = this.bucket[this.currentWindowId];
     if (!windowInfo) {
       return;
     }
@@ -126,7 +129,7 @@ class TabManager {
     const originalTabs = ungroupedTabs.slice().map((tab) => ({
       ...tab,
       lastAccessed:
-        tab.lastAccessed || tabInfoMap.get(tab.id ?? -1)?.lastAccessed || 0,
+        tab.lastAccessed || tabInfoMap[tab.id ?? -1]?.lastAccessed || 0,
     }));
     console.log(
       "before",
@@ -157,7 +160,7 @@ class TabManager {
    * 将低于阈值的标签页从分组里取出填充
    */
   async fillMissingTabs() {
-    const groupId = this.bucket.get(this.currentWindowId)?.groupId;
+    const groupId = this.bucket[this.currentWindowId]?.groupId;
     if (!groupId) {
       return;
     }
@@ -177,7 +180,7 @@ class TabManager {
    * 移入或创建分组
    */
   async groupTab(tabIds: number | number[], groupId?: number) {
-    const windowInfo = this.bucket.get(this.currentWindowId);
+    const windowInfo = this.bucket[this.currentWindowId];
     if (!windowInfo) {
       return;
     }
@@ -203,7 +206,7 @@ class TabManager {
    * 移出或销毁分组
    */
   async ungroupTab(groupedTabs: chrome.tabs.Tab[], tabId: number | number[]) {
-    const windowInfo = this.bucket.get(this.currentWindowId);
+    const windowInfo = this.bucket[this.currentWindowId];
     if (!windowInfo) {
       return;
     }
@@ -223,7 +226,7 @@ class TabManager {
    * 处理用户切换到分组标签页
    */
   async handleActivateGroupedTabs() {
-    const windowInfo = this.bucket.get(this.currentWindowId);
+    const windowInfo = this.bucket[this.currentWindowId];
     if (!windowInfo) {
       return;
     }
@@ -244,11 +247,11 @@ class TabManager {
     const groupedTabs = currentWindowTabs.filter(
       (tab) => tab.groupId === windowInfo.groupId
     );
-    const tabInfoMap = this.bucket.get(this.currentWindowId)?.tabInfoMap;
+    const tabInfoMap = this.bucket[this.currentWindowId]?.tabInfoMap;
     const originalTabs = ungroupedTabs.slice().map((tab) => ({
       ...tab,
       lastAccessed:
-        tab.lastAccessed || tabInfoMap?.get(tab.id ?? -1)?.lastAccessed || 0,
+        tab.lastAccessed || tabInfoMap?.[tab.id ?? -1]?.lastAccessed || 0,
     }));
     const [firstAccessedTab] = originalTabs;
     // 将选中标签页移出分组
