@@ -4,7 +4,15 @@
 
 - [x] 按照时间顺序保留标签页
 - [ ] 自动删除重复的 tabs
+  - 留作扩展功能，放到最后，参考其他项目
 - [ ] 收缩其他自定义组
+  - 留作配置项
+- [ ] 配置项
+  - 最大个数
+  - 整理规则（访问先后，点击次数）
+  - 分组信息（文案、颜色）
+  - 收缩其他组
+- [ ] 清理缓存数据
 
 ## BUG
 
@@ -18,6 +26,15 @@
 - [x] 长时间不使用浏览器会重新分组
   - 原因：浏览器自身策略，长时间不使用会将 background 销毁，激活浏览器后重新执行 background
   - 解决方案：将用到的变量存储到 storage 中，初始化时读取 storage 的数据
+- [ ] 单词存储数据超出显示：Error: QUOTA_BYTES_PER_ITEM quota exceeded
+  - 如果单个数据项大小超过 8192 字节,会抛出 QUOTA_BYTES_PER_ITEM 错误。
+  - 如果总存储空间超过 100KB,会抛出 QUOTA_BYTES 错误。
+  - 如何检测长度：https://stackoverflow.com/questions/67552133/chrome-api-runtime-quota-bytes-per-item-quota-exceeded-error-but-precheck-pass
+  - 解决方案：
+    1. 扁平化存储结构，减少单次存储量
+    2. 写入大数据时采取分包，读取时将包组合(https://stackoverflow.com/questions/67353979/algorithm-to-break-down-item-for-chrome-storage-sync/67429150)
+    3. 定期清理数据
+    4. 使用 local
 
 ## Flow
 

@@ -17,7 +17,7 @@ class TabManager {
   }
 
   async initData() {
-    const { bucket = {} } = await chrome.storage.sync.get(["bucket"]);
+    const { bucket = {} } = await chrome.storage.local.get(["bucket"]);
     this.bucket = bucket;
   }
 
@@ -272,7 +272,7 @@ class TabManager {
   }
 
   saveBucket() {
-    chrome.storage.sync.set({
+    chrome.storage.local.set({
       bucket: this.bucket,
     });
   }
