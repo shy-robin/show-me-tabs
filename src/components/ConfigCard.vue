@@ -15,11 +15,21 @@
       </div>
       <div class="config-card__item">
         <div class="config-card__item-label">标签整理规则</div>
-        <n-select v-model:value="rule" size="small" :options="ruleOptions" />
+        <n-select
+          v-model:value="rule"
+          size="small"
+          :options="ruleOptions"
+          @update:value="handleRuleChange"
+        />
       </div>
       <div class="config-card__item">
         <div class="config-card__item-label">分组文案</div>
-        <n-input v-model:value="groupLabel" clearable size="small" />
+        <n-input
+          v-model:value="groupLabel"
+          clearable
+          size="small"
+          @update:value="handleGroupLabelChange"
+        />
       </div>
       <div class="config-card__item">
         <div class="config-card__item-label">分组颜色</div>
@@ -27,6 +37,7 @@
           v-model:value="groupColor"
           size="small"
           :options="groupColorOptions"
+          @update:value="handleGroupColorChange"
         />
       </div>
     </div>
@@ -35,7 +46,9 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { NInputNumber, NInput, NSelect } from "naive-ui";
+import { NInputNumber, NInput, NSelect, useMessage } from "naive-ui";
+
+const Message = useMessage();
 
 const maxTabsCount = ref(7);
 const groupLabel = ref("MORE");
@@ -87,10 +100,38 @@ const groupColorOptions = [
   },
 ];
 
+const sendMessage = (
+  event:
+    | "update:maxTabsCount"
+    | "update:groupLabel"
+    | "update:groupColor"
+    | "update:rule",
+  val: any
+) => {
+  chrome.runtime.sendMessage({ event, val }, (response) => {
+    if (response) {
+      Message.success("操作成功");
+    } else {
+      Message.error("操作失败");
+    }
+  });
+};
+
 const handleMaxTabsCountChange = (val: number | null) => {
   if (val === null) {
     maxTabsCount.value = 1;
+    return;
   }
+  sendMessage("update:maxTabsCount", val);
+};
+const handleRuleChange = (val: string) => {
+  sendMessage("update:rule", val);
+};
+const handleGroupLabelChange = (val: string) => {
+  sendMessage("update:groupLabel", val);
+};
+const handleGroupColorChange = (val: string) => {
+  sendMessage("update:groupColor", val);
 };
 </script>
 

@@ -4,6 +4,7 @@ import {
   zhCN,
   dateZhCN,
   GlobalThemeOverrides,
+  NMessageProvider,
 } from "naive-ui";
 import ConfigCard from "./components/ConfigCard.vue";
 
@@ -17,13 +18,15 @@ const themeOverrides: GlobalThemeOverrides = {
 </script>
 
 <template>
-  <n-config-provider
-    :locale="zhCN"
-    :date-locale="dateZhCN"
-    :theme-overrides="themeOverrides"
-  >
-    <ConfigCard />
-  </n-config-provider>
+  <n-message-provider>
+    <n-config-provider
+      :locale="zhCN"
+      :date-locale="dateZhCN"
+      :theme-overrides="themeOverrides"
+    >
+      <ConfigCard />
+    </n-config-provider>
+  </n-message-provider>
 </template>
 
 <style scoped></style>

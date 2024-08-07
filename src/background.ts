@@ -2,7 +2,7 @@ import { Bucket } from "./types/tab";
 
 class TabManager {
   private currentWindowId = -1;
-  private maxTabsCount = 3;
+  private maxTabsCount = 7;
   // Map 无法使用 JSON.stringify 做序列化，所以用 object 代替
   private bucket: Bucket = {};
 
@@ -89,6 +89,59 @@ class TabManager {
         this.saveBucket();
       }
     });
+    // 监听 popup 消息
+    chrome.runtime.onMessage.addListener(
+      async (request, _sender, sendResponse) => {
+        (async () => {
+          const updateGroupInfo = async (params: {
+            title?: string;
+            color?: string;
+          }) => {
+            const { title, color } = params;
+            const windowInfo = this.bucket[this.currentWindowId];
+            if (!windowInfo || !windowInfo.groupId) {
+              return false;
+            }
+            await chrome.tabGroups.update(windowInfo.groupId, {
+              collapsed: true,
+              color: color as any,
+              title,
+            });
+          };
+          try {
+            const { event, val } = request;
+            switch (event) {
+              case "update:maxTabsCount":
+                this.maxTabsCount = val;
+                await this.organizeTabs();
+                break;
+              case "update:rule":
+                break;
+              case "update:groupLabel":
+                const res = updateGroupInfo({ title: val });
+                if (!res) {
+                  return sendResponse(false);
+                }
+                break;
+              case "update:groupColor":
+                const res2 = updateGroupInfo({ color: val });
+                if (!res2) {
+                  return sendResponse(false);
+                }
+                break;
+              default:
+                return sendResponse(false);
+            }
+            sendResponse(true);
+          } catch (err) {
+            console.error(err);
+            sendResponse(false);
+          }
+        })();
+
+        return true;
+      }
+    );
   }
 
   async getTabsInfo() {
