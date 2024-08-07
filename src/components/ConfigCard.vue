@@ -6,9 +6,11 @@
         <div class="config-card__item-label">单窗口标签最大显示数量</div>
         <n-input-number
           v-model:value="maxTabsCount"
-          clearable
           size="small"
           :min="1"
+          :max="100"
+          :update-value-on-input="false"
+          @update:value="handleMaxTabsCountChange"
         />
       </div>
       <div class="config-card__item">
@@ -84,6 +86,12 @@ const groupColorOptions = [
     value: "orange",
   },
 ];
+
+const handleMaxTabsCountChange = (val: number | null) => {
+  if (val === null) {
+    maxTabsCount.value = 1;
+  }
+};
 </script>
 
 <style lang="less" scoped>
