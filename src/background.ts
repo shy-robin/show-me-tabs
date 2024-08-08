@@ -1,10 +1,19 @@
 import { Bucket } from "./types/tab";
+import {
+  DEFAULT_MAX_TABS_COUNT,
+  DEFAULT_RULE,
+  DEFAULT_GROUP_LABEL,
+  DEFAULT_GROUP_COLOR,
+} from "./constants";
 
 class TabManager {
   private currentWindowId = -1;
-  private maxTabsCount = 7;
   // Map 无法使用 JSON.stringify 做序列化，所以用 object 代替
   private bucket: Bucket = {};
+  private maxTabsCount = DEFAULT_MAX_TABS_COUNT;
+  private rule = DEFAULT_RULE;
+  private groupLabel = DEFAULT_GROUP_LABEL;
+  private groupColor = DEFAULT_GROUP_COLOR;
 
   constructor() {
     this.init();
@@ -12,13 +21,31 @@ class TabManager {
 
   async init() {
     await this.initData();
-    this.organizeTabs();
-    this.initListener();
+    await this.organizeTabs();
+    await this.initListener();
   }
 
   async initData() {
+    // 大数据存储在 local 中
     const { bucket = {} } = await chrome.storage.local.get(["bucket"]);
+    // 配置数据存储在 sync 中
+    const {
+      maxTabsCount = DEFAULT_MAX_TABS_COUNT,
+      rule = DEFAULT_RULE,
+      groupLabel = DEFAULT_GROUP_LABEL,
+      groupColor = DEFAULT_GROUP_COLOR,
+    } = await chrome.storage.sync.get([
+      "maxTabsCount",
+      "rule",
+      "groupLabel",
+      "groupColor",
+    ]);
+
     this.bucket = bucket;
+    this.maxTabsCount = maxTabsCount;
+    this.rule = rule;
+    this.groupLabel = groupLabel;
+    this.groupColor = groupColor;
   }
 
   /**
@@ -37,12 +64,12 @@ class TabManager {
     }
     // 如果标签页数量超过阈值
     if (ungroupedTabsCount > this.maxTabsCount) {
-      this.groupExcessTabs(ungroupedTabs);
+      await this.groupExcessTabs(ungroupedTabs);
       return;
     }
     // 如果标签页数量低于阈值
     if (ungroupedTabsCount < this.maxTabsCount) {
-      this.fillMissingTabs();
+      await this.fillMissingTabs();
     }
   }
 
@@ -90,58 +117,61 @@ class TabManager {
       }
     });
     // 监听 popup 消息
-    chrome.runtime.onMessage.addListener(
-      async (request, _sender, sendResponse) => {
-        (async () => {
-          const updateGroupInfo = async (params: {
-            title?: string;
-            color?: string;
-          }) => {
-            const { title, color } = params;
-            const windowInfo = this.bucket[this.currentWindowId];
-            if (!windowInfo || !windowInfo.groupId) {
-              return false;
-            }
-            await chrome.tabGroups.update(windowInfo.groupId, {
-              collapsed: true,
-              color: color as any,
-              title,
-            });
-          };
+    chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
+      (async () => {
+        const updateGroupInfo = async () => {
+          const windowInfo = this.bucket[this.currentWindowId];
           try {
-            const { event, val } = request;
-            switch (event) {
-              case "update:maxTabsCount":
-                this.maxTabsCount = val;
-                await this.organizeTabs();
-                break;
-              case "update:rule":
-                break;
-              case "update:groupLabel":
-                const res = updateGroupInfo({ title: val });
-                if (!res) {
-                  return sendResponse(false);
-                }
-                break;
-              case "update:groupColor":
-                const res2 = updateGroupInfo({ color: val });
-                if (!res2) {
-                  return sendResponse(false);
-                }
-                break;
-              default:
-                return sendResponse(false);
-            }
-            sendResponse(true);
+            windowInfo?.groupId &&
+              (await chrome.tabGroups.update(windowInfo.groupId, {
+                collapsed: true,
+                color: this.groupColor as any,
+                title: this.groupLabel,
+              }));
+            return true;
           } catch (err) {
-            console.error(err);
-            sendResponse(false);
+            return true;
           }
-        })();
+        };
 
-        return true;
-      }
-    );
+        let status: boolean;
+        try {
+          const { event, val } = request;
+          switch (event) {
+            case "update:maxTabsCount":
+              this.maxTabsCount = val;
+              chrome.storage.sync.set({ maxTabsCount: val });
+              await this.organizeTabs();
+              status = true;
+              break;
+            case "update:rule":
+              this.rule = val;
+              chrome.storage.sync.set({ rule: val });
+              status = true;
+              break;
+            case "update:groupLabel":
+              this.groupLabel = val;
+              chrome.storage.sync.set({ groupLabel: val });
+              status = await updateGroupInfo();
+              break;
+            case "update:groupColor":
+              this.groupColor = val;
+              chrome.storage.sync.set({ groupColor: val });
+              status = await updateGroupInfo();
+              break;
+            default:
+              status = false;
+          }
+        } catch (err) {
+          console.error(err);
+          status = false;
+        }
+
+        sendResponse(status);
+      })();
+
+      return true;
+    });
   }
 
   async getTabsInfo() {
@@ -214,7 +244,7 @@ class TabManager {
         }))
     );
     // 创建分组
-    this.groupTab(tabIds, windowInfo.groupId);
+    await this.groupTab(tabIds, windowInfo.groupId);
   }
 
   /**
@@ -258,8 +288,8 @@ class TabManager {
     // 更新分组的状态
     await chrome.tabGroups.update(newGroupId, {
       collapsed: true,
-      color: "blue",
-      title: "MORE",
+      color: this.groupColor as any,
+      title: this.groupLabel,
     });
     this.saveBucket();
   }

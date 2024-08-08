@@ -5,7 +5,7 @@
       <div class="config-card__item">
         <div class="config-card__item-label">单窗口标签最大显示数量</div>
         <n-input-number
-          v-model:value="maxTabsCount"
+          v-model:value="maxTabsCountRef"
           size="small"
           :min="1"
           :max="100"
@@ -16,7 +16,7 @@
       <div class="config-card__item">
         <div class="config-card__item-label">标签整理规则</div>
         <n-select
-          v-model:value="rule"
+          v-model:value="ruleRef"
           size="small"
           :options="ruleOptions"
           @update:value="handleRuleChange"
@@ -25,7 +25,7 @@
       <div class="config-card__item">
         <div class="config-card__item-label">分组文案</div>
         <n-input
-          v-model:value="groupLabel"
+          v-model:value="groupLabelRef"
           clearable
           size="small"
           @update:value="handleGroupLabelChange"
@@ -34,7 +34,7 @@
       <div class="config-card__item">
         <div class="config-card__item-label">分组颜色</div>
         <n-select
-          v-model:value="groupColor"
+          v-model:value="groupColorRef"
           size="small"
           :options="groupColorOptions"
           @update:value="handleGroupColorChange"
@@ -47,13 +47,19 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { NInputNumber, NInput, NSelect, useMessage } from "naive-ui";
+import {
+  DEFAULT_GROUP_COLOR,
+  DEFAULT_GROUP_LABEL,
+  DEFAULT_MAX_TABS_COUNT,
+  DEFAULT_RULE,
+} from "../constants";
 
 const Message = useMessage();
 
-const maxTabsCount = ref(7);
-const groupLabel = ref("MORE");
-const groupColor = ref("blue");
-const rule = ref("lastAccessed");
+const maxTabsCountRef = ref(DEFAULT_MAX_TABS_COUNT);
+const groupLabelRef = ref(DEFAULT_GROUP_LABEL);
+const groupColorRef = ref(DEFAULT_GROUP_COLOR);
+const ruleRef = ref(DEFAULT_RULE);
 
 const ruleOptions = [
   {
@@ -79,8 +85,8 @@ const groupColorOptions = [
     value: "yellow",
   },
   {
-    label: "green",
-    value: "绿",
+    label: "绿",
+    value: "green",
   },
   {
     label: "粉",
@@ -99,6 +105,25 @@ const groupColorOptions = [
     value: "orange",
   },
 ];
+
+const initData = async () => {
+  const {
+    maxTabsCount = DEFAULT_MAX_TABS_COUNT,
+    rule = DEFAULT_RULE,
+    groupLabel = DEFAULT_GROUP_LABEL,
+    groupColor = DEFAULT_GROUP_COLOR,
+  } = await chrome.storage.sync.get([
+    "maxTabsCount",
+    "rule",
+    "groupLabel",
+    "groupColor",
+  ]);
+  maxTabsCountRef.value = maxTabsCount;
+  ruleRef.value = rule;
+  groupLabelRef.value = groupLabel;
+  groupColorRef.value = groupColor;
+};
+initData();
 
 const sendMessage = (
   event:
@@ -119,7 +144,7 @@ const sendMessage = (
 
 const handleMaxTabsCountChange = (val: number | null) => {
   if (val === null) {
-    maxTabsCount.value = 1;
+    maxTabsCountRef.value = 1;
     return;
   }
   sendMessage("update:maxTabsCount", val);
