@@ -8,10 +8,13 @@
 - [ ] 收缩其他自定义组
   - 留作配置项
 - [ ] 配置项
-  - 最大个数
-  - 整理规则（访问先后，点击次数）
-  - 分组信息（文案、颜色）
-  - 收缩其他组
+  - [ ] 最大个数
+  - [ ] 整理规则（访问先后，点击次数）
+  - [x] 分组信息（文案、颜色）
+  - [ ] 收缩其他组
+  - [ ] 显示标签页数量角标
+  - [ ] 一键关闭收缩标签页
+  - [ ] 重新排列标签页
 - [ ] 清理缓存数据
 
 ## BUG
@@ -29,12 +32,16 @@
 - [ ] 单词存储数据超出显示：Error: QUOTA_BYTES_PER_ITEM quota exceeded
   - 如果单个数据项大小超过 8192 字节,会抛出 QUOTA_BYTES_PER_ITEM 错误。
   - 如果总存储空间超过 100KB,会抛出 QUOTA_BYTES 错误。
-  - 如何检测长度：https://stackoverflow.com/questions/67552133/chrome-api-runtime-quota-bytes-per-item-quota-exceeded-error-but-precheck-pass
+  - 如何检测长度：<https://stackoverflow.com/questions/67552133/chrome-api-runtime-quota-bytes-per-item-quota-exceeded-error-but-precheck-pass>
   - 解决方案：
     1. 扁平化存储结构，减少单次存储量
-    2. 写入大数据时采取分包，读取时将包组合(https://stackoverflow.com/questions/67353979/algorithm-to-break-down-item-for-chrome-storage-sync/67429150)
+    2. 写入大数据时采取分包，读取时将包组合(<https://stackoverflow.com/questions/67353979/algorithm-to-break-down-item-for-chrome-storage-sync/67429150>)
     3. 定期清理数据
     4. 使用 local
+- [x] 当点击减小或增加按钮时，background 报错，无法重新整理 tabs
+  - 原因：当打开 popup 向 background 发送消息时，通过 chrome.windows.getCurrent() 获取
+    到的当前窗口不是标签页的窗口，而是执行 background 代码的窗口。
+    具体参考：<https://developer.chrome.com/docs/extensions/reference/api/windows?hl=zh-cn#the_current_window>
 
 ## Flow
 

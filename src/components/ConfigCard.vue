@@ -131,9 +131,10 @@ const sendMessage = (
     | "update:groupLabel"
     | "update:groupColor"
     | "update:rule",
-  val: any
+  val: any,
+  windowId?: number
 ) => {
-  chrome.runtime.sendMessage({ event, val }, (response) => {
+  chrome.runtime.sendMessage({ event, val, windowId }, (response) => {
     if (response) {
       Message.success("操作成功");
     } else {
@@ -142,12 +143,13 @@ const sendMessage = (
   });
 };
 
-const handleMaxTabsCountChange = (val: number | null) => {
+const handleMaxTabsCountChange = async (val: number | null) => {
   if (val === null) {
     maxTabsCountRef.value = 1;
     return;
   }
-  sendMessage("update:maxTabsCount", val);
+  const currentWindow = await chrome.windows.getCurrent();
+  sendMessage("update:maxTabsCount", val, currentWindow.id);
 };
 const handleRuleChange = (val: string) => {
   sendMessage("update:rule", val);

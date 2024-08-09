@@ -51,9 +51,13 @@ class TabManager {
   /**
    * 整理标签页
    */
-  async organizeTabs() {
-    const currentWindow = await chrome.windows.getCurrent();
-    this.currentWindowId = currentWindow.id ?? -1;
+  async organizeTabs(currentWindowId?: number) {
+    if (currentWindowId) {
+      this.currentWindowId = currentWindowId;
+    } else {
+      const currentWindow = await chrome.windows.getCurrent();
+      this.currentWindowId = currentWindow.id ?? -1;
+    }
     this.updateBucket(this.currentWindowId);
 
     const { ungroupedTabs } = await this.getTabsInfo();
@@ -136,12 +140,15 @@ class TabManager {
 
         let status: boolean;
         try {
-          const { event, val } = request;
+          const { event, val, windowId } = request;
           switch (event) {
             case "update:maxTabsCount":
+              // NOTE: 当打开 popup 向 background 发送消息时，通过 chrome.windows.getCurrent() 获取
+              // 到的当前窗口不是标签页的窗口，而是执行 background 代码的窗口。
+              // 具体参考：https://developer.chrome.com/docs/extensions/reference/api/windows?hl=zh-cn#the_current_window
               this.maxTabsCount = val;
               chrome.storage.sync.set({ maxTabsCount: val });
-              await this.organizeTabs();
+              await this.organizeTabs(windowId);
               status = true;
               break;
             case "update:rule":
