@@ -95,8 +95,10 @@ class TabManager {
       this.organizeTabs();
     });
     // 在标签页关闭时触发。
-    chrome.tabs.onRemoved.addListener(() => {
+    chrome.tabs.onRemoved.addListener((tabId) => {
       this.organizeTabs();
+      delete this.bucket?.[this.currentWindowId]?.tabInfoMap?.[tabId];
+      this.saveBucket();
     });
     // 在窗口中的活动标签页发生变化时触发。
     chrome.tabs.onActivated.addListener(() => {
@@ -108,6 +110,11 @@ class TabManager {
       if ("pinned" in changeInfo) {
         this.organizeTabs();
       }
+    });
+    // 在移除（关闭）窗口时触发。
+    chrome.windows.onRemoved.addListener((windowId) => {
+      delete this.bucket[windowId];
+      this.saveBucket();
     });
     chrome.windows.onFocusChanged.addListener((windowId) => {
       this.currentWindowId = windowId;
