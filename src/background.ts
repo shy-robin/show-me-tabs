@@ -60,12 +60,13 @@ class TabManager {
     }
     this.updateBucket(this.currentWindowId);
 
-    const { ungroupedTabs } = await this.getTabsInfo();
+    const { ungroupedTabs, currentWindowTabs } = await this.getTabsInfo();
     const ungroupedTabsCount = ungroupedTabs.length;
 
     if (ungroupedTabsCount === 0) {
       return;
     }
+    this.updateBadge(currentWindowTabs.length, this.maxTabsCount);
     // 如果标签页数量超过阈值
     if (ungroupedTabsCount > this.maxTabsCount) {
       await this.groupExcessTabs(ungroupedTabs);
@@ -87,6 +88,18 @@ class TabManager {
       tabInfoMap: {},
     };
     this.saveBucket();
+  }
+
+  async updateBadge(count: number, maxCount: number) {
+    chrome.action.setBadgeText({
+      text: String(count),
+    });
+    chrome.action.setBadgeTextColor({
+      color: "#fff",
+    });
+    chrome.action.setBadgeBackgroundColor({
+      color: count <= maxCount ? "#0c0" : "#c00",
+    });
   }
 
   async initListener() {
@@ -116,8 +129,14 @@ class TabManager {
       delete this.bucket[windowId];
       this.saveBucket();
     });
-    chrome.windows.onFocusChanged.addListener((windowId) => {
+    chrome.windows.onFocusChanged.addListener(async (windowId) => {
       this.currentWindowId = windowId;
+      // 更新角标
+      if (windowId < 0) {
+        return;
+      }
+      const { currentWindowTabs } = await this.getTabsInfo();
+      this.updateBadge(currentWindowTabs.length, this.maxTabsCount);
     });
     chrome.tabGroups.onRemoved.addListener((tabGroup) => {
       const { id } = tabGroup;
