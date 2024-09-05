@@ -115,7 +115,10 @@ class TabManager {
     });
     // 在窗口中的活动标签页发生变化时触发。
     chrome.tabs.onActivated.addListener(() => {
-      this.handleActivateGroupedTabs();
+      // 修复报错：Tabs cannot be edited right now (user may be dragging a tab)
+      setTimeout(() => {
+        this.handleActivateGroupedTabs();
+      }, 100);
     });
     // 在标签页更新时触发。
     chrome.tabs.onUpdated.addListener((_tabId, changeInfo) => {
@@ -365,10 +368,6 @@ class TabManager {
     if (!isGroupedTab) {
       return;
     }
-    // FIXME: why
-    await new Promise((resolve) => {
-      setTimeout(() => resolve(true), 100);
-    });
     // 找到未分组标签页中最早访问的标签
     const groupedTabs = currentWindowTabs.filter(
       (tab) => tab.groupId === windowInfo.groupId

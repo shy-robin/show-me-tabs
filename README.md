@@ -19,6 +19,9 @@
 
 ## BUG
 
+- [x] 当切换到分组内标签页，有概率无法将分组内的标签页置换出来
+  - 原因：会出现报错：Tabs cannot be edited right now (user may be dragging a tab)
+  - 参考：https://stackoverflow.com/questions/67806779/im-getting-an-error-tabs-cannot-be-edited-right-now-user-may-be-dragging-a-ta
 - [x] 如果有置顶标签：Error: Cannot move the group to an index that is in the middle of pinned tabs.
 - [x] 新窗口添加标签页，会影响旧窗口标签页的分组
   - 原因：多个窗口共用了同一个 groupId
